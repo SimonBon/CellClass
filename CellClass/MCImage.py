@@ -4,7 +4,6 @@ class MCImage():
 
     def __init__(self, img, scheme="BGR"):
         
-        self.img = img
         scheme = scheme.upper()
 
         if scheme not in ["BGR", "RGB", "GRAY"]:
@@ -23,6 +22,9 @@ class MCImage():
 
             elif scheme == "GRAY":
                 self.GRAY = img
+                
+            if hasattr(self, "B"):
+                self.RGB = np.stack((self.R, self.G, self.B), axis=-1)
 
     def normalize(self, channelwise=True):
 

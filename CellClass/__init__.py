@@ -3,25 +3,12 @@ import numpy as np
 import cv2
 
 from .MCImage import MCImage
+from .utils import imread
 
 __version__ = "CellClass v0.0.4"
 
-import matplotlib.pyplot as plt
-
-        
-def imread(p: PathLike) -> np.ndarray:
-
-    im = cv2.imread(p)
-    #im = normalize_image(im)
-    return (im/im.max()).astype("float32")
-
-def normalize_image(im: np.ndarray):
-
-    im = (im-im.min())/(im.max()-im.min())
-    return im
-
-
 if __name__ == "__main__":
+    
     print(__version__)
     
     tif = imread("/Users/simon.gutwein/pypi/MICCAI/test/image.tif")
