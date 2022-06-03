@@ -4,11 +4,14 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cv2
 
-def get_cell_patches(im: np.ndarray, masks: np.ndarray, size=64):
+from CellClass.MCImage import MCImage
+from typing import Union
+
+def get_cell_patches(MCIm: MCImage, masks: np.ndarray, channels=["B", "G", "R"], size=64):
     
     centers = get_cell_centers(masks)
     
-    patches = extract_patches(im, masks, centers, size)
+    patches = extract_patches(MCIm, masks, centers, size, channels)
     
     return patches
 
@@ -19,7 +22,7 @@ def get_cell_centers(mask: np.ndarray) -> np.ndarray:
     for n in tqdm(range(1,mask.max()+1)):
         tmp = np.copy(mask)
         tmp[mask != n] = 0
-        tmp = tmp.astype(bool)
+        tmp = tmp.astype(float)
         y, x = np.where(tmp != 0)
         y_min, y_max = y.min(), y.max()+1
         x_min, x_max = x.min(), x.max()+1
@@ -36,14 +39,22 @@ def get_cell_centers(mask: np.ndarray) -> np.ndarray:
         
 def calc_center(bin):
     
-    M00 = np.sum(bin)
-    M10 = np.sum(np.array(range(bin.shape[0])) * np.sum(bin, axis=1))
-    M01 = np.sum(np.array(range(bin.shape[1])) * np.sum(bin, axis=0))
+    M = cv2.moments(bin)
     
-    return M10/M00, M01/M00
+    return M["m10"]/M["m00"], M["m01"]/M["m00"]
+    
+    # M00 = np.sum(bin)
+    # M10 = np.sum(np.array(range(bin.shape[0])) * np.sum(bin, axis=1))
+    # M01 = np.sum(np.array(range(bin.shape[1])) * np.sum(bin, axis=0))
+    # return M10/M00, M01/M00
 
-def extract_patches(im, masks, centers, size):
+def extract_patches(MCIm, masks, centers, size, channels):
     
+    if len(channels) == 1:
+        im = getattr(MCIm, channels[0])
+    else:
+        im = np.stack([getattr(MCIm, x) for x in channels], axis=-1)
+        
     if im.ndim == 2:
         tmp_im = np.pad(im, ((size//2, size//2),(size//2, size//2)), mode="constant")
         
@@ -66,13 +77,43 @@ def extract_patches(im, masks, centers, size):
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
         marker_im[cell_mask == 0] = 0
         
-        patches.append(marker_im)
+        patch = Patch(cell_mask, marker_im, channels, y, x, n)
         
-    return np.array(patches).astype("float32")
-
+        patches.append(patch)
+        
+    return patches
         
 def dilate_mask(mask, s=3):
     
     k = np.ones((s,s)).astype(np.uint8)
     ret = cv2.dilate(mask.astype(np.uint8), k)
     return ret.astype(bool)
+
+
+class Patch():
+    
+    def __init__(self, mask, img, channels, y_pos, x_pos, idx):
+        
+        for n, c in enumerate(channels):
+            setattr(self, c, img[..., n])
+           
+        self.img = img
+        self.shape = img.shape         
+        self.mask = mask
+        self.y_pos = y_pos
+        self.x_pos = x_pos
+        self.idx = idx
+        
+        self.y_size ,self.x_size = self.get_size()
+
+        self.area = np.sum(mask)
+
+    def get_size(self):
+        
+        y, x = np.where(self.mask != 0)
+        y_min, y_max = y.min(), y.max()+1
+        x_min, x_max = x.min(), x.max()+1
+        
+        return y_max-y_min, x_max-x_min
+    
+    
