@@ -75,9 +75,10 @@ def extract_patches(MCIm, masks, centers, size, channels):
         cell_mask = dilate_mask(cell_mask, 3)
         
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
+        marker_all = np.copy(marker_im)
         marker_im[cell_mask == 0] = 0
         
-        patch = Patch(cell_mask, marker_im, channels, y, x, n)
+        patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
         
         patches.append(patch)
         
@@ -92,13 +93,22 @@ def dilate_mask(mask, s=3):
 
 class Patch():
     
-    def __init__(self, mask, img, channels, y_pos, x_pos, idx):
+    def __init__(self, mask, masked, not_masked, channels, y_pos, x_pos, idx):
         
         for n, c in enumerate(channels):
-            setattr(self, c, img[..., n])
+            setattr(self, c + "_masked", masked[..., n])
+            setattr(self, c + "_not_masked", not_masked[..., n])
            
-        self.img = img
-        self.shape = img.shape         
+        if hasattr(self, "R_masked") and hasattr(self, "G_masked") and hasattr(self, "B_masked"):
+            self.RGB_masked = np.stack((self.R_masked, self.G_masked, self.B_masked), axis=-1)
+            self.RGB_not_masked = np.stack((self.R_not_masked, self.G_not_masked, self.B_not_masked), axis=-1)
+            self.overlay = np.clip(self.RGB_not_masked + np.stack((0.2*mask, 0.2*mask, 0.2*mask), axis=-1), 0 ,1)
+        
+        else:
+            self.masked = masked
+            self.not_masked = not_masked
+           
+        self.shape = masked.shape         
         self.mask = mask
         self.y_pos = y_pos
         self.x_pos = x_pos
