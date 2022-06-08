@@ -74,13 +74,14 @@ def extract_patches(MCIm, masks, centers, size, channels):
         cell_mask = cell_mask.astype(bool)
         cell_mask = dilate_mask(cell_mask, 3)
         
+        
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
         marker_all = np.copy(marker_im)
         marker_im[cell_mask == 0] = 0
         
-        patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
-        
-        patches.append(patch)
+        if cell_mask.any():
+            patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
+            patches.append(patch)
         
     return patches
         
@@ -121,8 +122,10 @@ class Patch():
     def get_size(self):
         
         y, x = np.where(self.mask != 0)
+        
         y_min, y_max = y.min(), y.max()+1
         x_min, x_max = x.min(), x.max()+1
+            
         
         return y_max-y_min, x_max-x_min
     
