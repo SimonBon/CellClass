@@ -3,9 +3,42 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cv2
+from skimage.measure import regionprops_table
 
 from CellClass.MCImage import MCImage
 from typing import Union
+
+PROPERTIES = ('area',
+ 'area_bbox',
+ 'area_convex',
+ 'area_filled',
+ 'axis_major_length',
+ 'axis_minor_length',
+ 'bbox',
+ 'centroid',
+ 'centroid_local',
+ 'coords',
+ 'eccentricity',
+ 'equivalent_diameter_area',
+ 'euler_number',
+ 'extent',
+ 'feret_diameter_max',
+ 'image',
+ 'image_convex',
+ 'image_filled',
+ 'inertia_tensor',
+ 'inertia_tensor_eigvals',
+ 'label',
+ 'moments',
+ 'moments_central',
+ 'moments_hu',
+ 'moments_normalized',
+ 'orientation',
+ 'perimeter',
+ 'perimeter_crofton',
+ 'slice',
+ 'solidity')
+
 
 def get_cell_patches(MCIm: MCImage, masks: np.ndarray, channels=["B", "G", "R"], size=64):
     
@@ -72,43 +105,51 @@ def extract_patches(MCIm, masks, centers, size, channels):
         cell_mask = np.copy(tmp_masks[w_y[0]:w_y[1], w_x[0]:w_x[1]])
         cell_mask[cell_mask != n] = 0
         cell_mask = cell_mask.astype(bool)
-        cell_mask = dilate_mask(cell_mask, 3)
+        #cell_mask = erode_mask(cell_mask, 11)
         
         
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
-        marker_all = np.copy(marker_im)
+        #marker_all = np.copy(marker_im)
         marker_im[cell_mask == 0] = 0
         
         if cell_mask.any():
-            patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
+            #patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
+            patch = Patch(cell_mask, marker_im, channels, y, x, n)
             patches.append(patch)
         
     return patches
         
-def dilate_mask(mask, s=3):
+def erode_mask(mask, s=11):
     
     k = np.ones((s,s)).astype(np.uint8)
-    ret = cv2.dilate(mask.astype(np.uint8), k)
+    ret = cv2.erode(mask.astype(np.uint8), k)
     return ret.astype(bool)
 
 
 class Patch():
     
-    def __init__(self, mask, masked, not_masked, channels, y_pos, x_pos, idx):
+    # def __init__(self, mask, masked, not_masked, channels, y_pos, x_pos, idx):
         
+        # for n, c in enumerate(channels):
+        #     setattr(self, c + "_masked", masked[..., n])
+        #     setattr(self, c + "_not_masked", not_masked[..., n])
+           
+        # if hasattr(self, "R_masked") and hasattr(self, "G_masked") and hasattr(self, "B_masked"):
+        #     self.RGB_masked = np.stack((self.R_masked, self.G_masked, self.B_masked), axis=-1)
+        #     self.RGB_not_masked = np.stack((self.R_not_masked, self.G_not_masked, self.B_not_masked), axis=-1)
+        #     self.overlay = np.clip(self.RGB_not_masked + np.stack((0.2*mask, 0.2*mask, 0.2*mask), axis=-1), 0 ,1)
+        
+        # else:
+        #     self.masked = masked
+        #     self.not_masked = not_masked
+    def __init__(self, mask, masked, channels, y_pos, x_pos, idx):
+          
         for n, c in enumerate(channels):
-            setattr(self, c + "_masked", masked[..., n])
-            setattr(self, c + "_not_masked", not_masked[..., n])
+            setattr(self, c, masked[..., n])
            
-        if hasattr(self, "R_masked") and hasattr(self, "G_masked") and hasattr(self, "B_masked"):
-            self.RGB_masked = np.stack((self.R_masked, self.G_masked, self.B_masked), axis=-1)
-            self.RGB_not_masked = np.stack((self.R_not_masked, self.G_not_masked, self.B_not_masked), axis=-1)
-            self.overlay = np.clip(self.RGB_not_masked + np.stack((0.2*mask, 0.2*mask, 0.2*mask), axis=-1), 0 ,1)
-        
-        else:
-            self.masked = masked
-            self.not_masked = not_masked
-           
+        if len(channels) == 3:
+            self.RGB = np.stack((self.R, self.G, self.B), axis=-1)
+            
         self.shape = masked.shape         
         self.mask = mask
         self.y_pos = y_pos
@@ -116,8 +157,10 @@ class Patch():
         self.idx = idx
         
         self.y_size ,self.x_size = self.get_size()
-
         self.area = np.sum(mask)
+        
+        props = regionprops_table(self.mask.astype("uint8"), properties=PROPERTIES)
+        self.props = props
 
     def get_size(self):
         
@@ -126,7 +169,6 @@ class Patch():
         y_min, y_max = y.min(), y.max()+1
         x_min, x_max = x.min(), x.max()+1
             
-        
         return y_max-y_min, x_max-x_min
     
     

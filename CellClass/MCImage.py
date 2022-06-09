@@ -7,7 +7,7 @@ class MCImage():
         scheme = scheme.upper()
 
         if scheme not in ["BGR", "RGB"]:
-            raise ValueError("Not a valid color scheme! Please use: 'BGR', 'RGB' or 'GRAY'")
+            raise ValueError("Not a valid color scheme! Please use: 'BGR', 'RGB'")
         else:
 
             if scheme == "BGR":

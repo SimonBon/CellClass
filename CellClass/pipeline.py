@@ -46,7 +46,7 @@ if __name__=="__main__":
         S = Segmentation()
         _, res = S(MCIm.B, return_outline=False)
 
-        patches = get_cell_patches(MCIm, res, size=64)
+        patches = get_cell_patches(MCIm, res, size=128)
 
         with open(os.path.join(args.out_path, f'{sample_name}.ptch'), 'wb+') as f:
             print("Saved " + sample_name)
