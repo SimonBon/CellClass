@@ -3,13 +3,13 @@ import numpy as np
 class MCImage():
 
     def __init__(self, img, scheme="BGR"):
-        
-        scheme = scheme.upper()
 
-        if scheme not in ["BGR", "RGB"]:
+        # check if color-scheme is BGR or RGB
+        if scheme.upper() not in ["BGR", "RGB"]:
             raise ValueError("Not a valid color scheme! Please use: 'BGR', 'RGB'")
         else:
 
+            # defined by the colorscheme set the channels of the MCImage 
             if scheme == "BGR":
                 self.B = img[..., 0]
                 self.G = img[..., 1]
@@ -21,8 +21,10 @@ class MCImage():
                 self.R = img[..., 0]
                 
 
+            # set the RGB attribute for easier debugging and visualization with matplotlib.pyplot.imshow()
             self.RGB = np.stack((self.R, self.G, self.B), axis=-1)
 
+    # normalize the values of the MCImage instance from 0 to 1 either channelwise or globaly over the entire image
     def normalize(self, channelwise=True):
         
         if channelwise:

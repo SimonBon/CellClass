@@ -1,11 +1,12 @@
 import argparse
 import os
+import cv2
 import pickle as pkl
 from CellClass import MCImage, imread
 from CellClass.Segment import Segmentation
 from CellClass.process_masks import get_cell_patches
 
-
+# get arguments for preparation of images to save them in BGR and tif format. 
 def parse():
 
     p = argparse.ArgumentParser()
@@ -15,6 +16,7 @@ def parse():
 
     return p.parse_args()
 
+#images finden die dem gegebenem Pattern entsprechen
 def find_matching_images(dir, pattern):
 
     matches = [x for x in os.listdir(dir) if f"{pattern}_" in x and not x.startswith(".")]
@@ -30,6 +32,7 @@ if __name__=="__main__":
 
     names = find_matching_images(args.in_path, args.sample_name)
 
+    # for each sample extract the patches
     for n in names:
 
         sample_name = n.split(".")[0]
@@ -44,12 +47,14 @@ if __name__=="__main__":
         MCIm.normalize()
 
         S = Segmentation()
-        _, res = S(MCIm.B, return_outline=False)
+        _, res, o = S(MCIm.B, return_outline=True, image_mpp=0.4)
 
         patches = get_cell_patches(MCIm, res, size=128)
 
         with open(os.path.join(args.out_path, f'{sample_name}.ptch'), 'wb+') as f:
-            print("Saved " + sample_name)
             pkl.dump(patches, f)
+            
+        cv2.imwrite(os.path.join(args.out_path, f'overlays/{sample_name}_o.jpg'), (o.astype("float32")*255).astype("uint8"))
+        print("Saved " + sample_name)
 
 

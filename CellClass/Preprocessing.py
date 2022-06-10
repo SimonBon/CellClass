@@ -23,9 +23,12 @@ def apply_clahe(img, clipLimit=6):
 
 def illumination(inp:np.ndarray, n=8) -> tuple:
 
-    r = 512/max(inp.shape)
-    ret = cv2.resize(inp, (int(r*inp.shape[0]), int(r*inp.shape[1])))
-    print(ret.shape)
+    if not max(inp.shape) < 512:
+        r = 512/max(inp.shape)
+        ret = cv2.resize(inp, (int(r*inp.shape[0]), int(r*inp.shape[1])))
+        print(f"Resizing to {ret.shape}")
+
+    ret = np.copy(inp)
 
     for d_i in range(n):
 
@@ -46,6 +49,5 @@ def illumination(inp:np.ndarray, n=8) -> tuple:
         ret = tmp_2[d_i:ret.shape[0]+d_i, d_i:ret.shape[1]+d_i]
     
     ret = cv2.resize(ret, (inp.shape[1], inp.shape[0]))
-    print(ret.shape)
 
     return inp-ret, ret

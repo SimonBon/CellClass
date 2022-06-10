@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cv2
+from collections import defaultdict
 from skimage.measure import regionprops_table
 
 from CellClass.MCImage import MCImage
@@ -17,15 +18,11 @@ PROPERTIES = ('area',
  'bbox',
  'centroid',
  'centroid_local',
- 'coords',
  'eccentricity',
  'equivalent_diameter_area',
  'euler_number',
  'extent',
  'feret_diameter_max',
- 'image',
- 'image_convex',
- 'image_filled',
  'inertia_tensor',
  'inertia_tensor_eigvals',
  'label',
@@ -159,7 +156,15 @@ class Patch():
         self.y_size ,self.x_size = self.get_size()
         self.area = np.sum(mask)
         
-        props = regionprops_table(self.mask.astype("uint8"), properties=PROPERTIES)
+        props_B = regionprops_table(self.mask.astype("uint8"), self.B, properties=PROPERTIES)
+        props_R = regionprops_table(self.mask.astype("uint8"), self.R, properties=PROPERTIES)
+        props_G = regionprops_table(self.mask.astype("uint8"), self.G, properties=PROPERTIES)
+        
+        props = defaultdict()
+        for p, c in zip([props_B, props_R, props_G],["B", "R", "G"]):
+            for x in p:
+                props[f"{x}_{c}"] = p[x][0]
+            
         self.props = props
 
     def get_size(self):

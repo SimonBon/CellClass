@@ -61,9 +61,8 @@ def stack_save_focuses(idx, files, in_p, out_p):
 
     mean = np.sum(ims, axis=1)/ims.shape[1]
     
-
-    cv2.imwrite(os.path.join(out_p, f'Img-{idx}-G.TIF'), mean[0].astype("uint8"))
-    cv2.imwrite(os.path.join(out_p, f'Img-{idx}-R.TIF'), mean[1].astype("uint8"))
+    cv2.imwrite(os.path.join(out_p, f'Img-{idx}-R.TIF'), mean[0].astype("uint8"))
+    cv2.imwrite(os.path.join(out_p, f'Img-{idx}-G.TIF'), mean[1].astype("uint8"))
     cv2.imwrite(os.path.join(out_p, f'Img-{idx}-B.TIF'), b.astype("uint8"))
 
 class Worker(threading.Thread):
