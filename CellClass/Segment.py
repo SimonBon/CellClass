@@ -1,18 +1,28 @@
-from deepcell.applications import NuclearSegmentation
 from deepcell.utils.plot_utils import make_outline_overlay, create_rgb_image
+from deepcell.applications import NuclearSegmentation
+import torch as pt
+from cellpose.models import Cellpose
 import numpy as np
 
 class Segmentation():
     
     #usafe of NuclearSegmentation from DeepCell: https://deepcell.readthedocs.io/en/master/API/deepcell.applications.html#nuclearsegmentation
-    def __init__(self, *args, **kwargs):
+    def __init__(self, type, *args, **kwargs):
         
-        self.app = NuclearSegmentation(*args, **kwargs)
+        if not type.lower() in ["cellpose", "deepcell"]:
+            raise ValueError("Only Cellpose and DeepCell are valid arguments for 'type'")
+        
+        if type.lower() == "deepcell":
+            self.app = NuclearSegmentation(*args, **kwargs)
+        
+        else:
+            device = pt.device("cuda") if pt.cuda.is_available() else pt.device("cpu")
+            self.app = Cellpose(gpu=pt.cuda.is_available(), model_type="nuclei", device=device)
     
     # call instance to segment an image
     def __call__(self, im, *args, return_outline=False, MCIm=None, **kwargs):
     
-    
+
         # if single 2D image is provided increase to 4d with dimensions [1, W, H, 1]
         if im.ndim == 2:
             tmp = np.expand_dims(im, axis=0)
@@ -22,7 +32,7 @@ class Segmentation():
         elif im.ndim == 3:
             
             if im.shape[-1] == 3: 
-                except "RGB Images are not supported"
+                raise ValueError("RGB Images are not supported")
     
             tmp = np.expand_dims(im, axis=-1)
             
@@ -31,7 +41,16 @@ class Segmentation():
             tmp = np.copy(im)
             
         # call nuclear segmentation from deepcell with args and kwargs
-        masks = self.app.predict(tmp, *args, **kwargs)
+        
+        if isinstance(self.app, Cellpose):
+                
+            masks = self.app.eval(tmp, *args, **kwargs)[0]
+            masks = np.expand_dims(masks, axis=0)
+            masks = np.expand_dims(masks, axis=-1)
+        
+        elif isinstance(self.app, NuclearSegmentation):
+        
+            masks = self.app.predict(tmp, *args, **kwargs)
         
         # for debugging return_outline controlls if an overlay image of cells with outline is retured
         if return_outline:
@@ -55,7 +74,7 @@ class Segmentation():
     def create_outline(im, mask, MCIm=None):
         
         if MCIm:
-            rgb = np.expand_dims(MCIm.RGB, 0)å
+            rgb = np.expand_dims(MCIm.RGB, 0)
             outline = make_outline_overlay(rgb, mask)
             
         else:

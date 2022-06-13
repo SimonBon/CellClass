@@ -6,6 +6,7 @@ from CellClass import MCImage, imread
 from CellClass.Segment import Segmentation
 from CellClass.process_masks import get_cell_patches
 
+
 # get arguments for preparation of images to save them in BGR and tif format. 
 def parse():
 
@@ -13,6 +14,7 @@ def parse():
     p.add_argument("-i", "--in_path")
     p.add_argument("-o", "--out_path")
     p.add_argument("-s", "--sample_name")
+    p.add_argument("--algorithm", default="cellpose")
 
     return p.parse_args()
 
@@ -46,8 +48,12 @@ if __name__=="__main__":
         MCIm = MCImage(img, scheme="BGR")
         MCIm.normalize()
 
-        S = Segmentation()
-        _, res, o = S(MCIm.B, return_outline=True, image_mpp=0.4)
+        S = Segmentation(args.algorithm)
+        if args.algorithm == "deepcell":
+            _, res, o = S(MCIm.B, return_outline=True, image_mpp=0.4)
+        else:
+            _, res, o = S(MCIm.B, return_outline=True)
+
 
         patches = get_cell_patches(MCIm, res, size=128)
 

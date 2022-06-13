@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from tqdm import tqdm
 from skimage.morphology import reconstruction
 from .utils import float32_to_uint8, uint8_to_float32
 
@@ -14,7 +15,6 @@ def h_dome(img, h=0.7):
 def apply_clahe(img, clipLimit=6):
 
     img = float32_to_uint8(img)
-    print(img.dtype, img.min(), img.max())
     clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8,8))
     equalized = clahe.apply(img)
 
@@ -27,10 +27,11 @@ def illumination(inp:np.ndarray, n=8) -> tuple:
         r = 512/max(inp.shape)
         ret = cv2.resize(inp, (int(r*inp.shape[0]), int(r*inp.shape[1])))
         print(f"Resizing to {ret.shape}")
+    
+    else: 
+        ret = np.copy(inp)
 
-    ret = np.copy(inp)
-
-    for d_i in range(n):
+    for d_i in tqdm(range(n)):
 
         d_i=int((d_i//2)*2+1)
         tmp_2 = cv2.copyMakeBorder(ret, d_i, d_i, d_i, d_i, cv2.BORDER_REPLICATE)
@@ -48,6 +49,6 @@ def illumination(inp:np.ndarray, n=8) -> tuple:
         tmp_2 = cv2.GaussianBlur(tmp_2, ksize=(d_i, d_i), sigmaX=d_i, sigmaY=d_i)
         ret = tmp_2[d_i:ret.shape[0]+d_i, d_i:ret.shape[1]+d_i]
     
-    ret = cv2.resize(ret, (inp.shape[1], inp.shape[0]))
+    ret = cv2.resize(ret, (inp.shape[1], inp.shape[0]), interpolation=cv2.INTER_LINEAR)
 
     return inp-ret, ret
