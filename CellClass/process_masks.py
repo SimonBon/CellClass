@@ -102,7 +102,7 @@ def extract_patches(MCIm, masks, centers, size, channels):
         cell_mask = np.copy(tmp_masks[w_y[0]:w_y[1], w_x[0]:w_x[1]])
         cell_mask[cell_mask != n] = 0
         cell_mask = cell_mask.astype(bool)
-        #cell_mask = erode_mask(cell_mask, 11)
+        cell_mask = dilate_mask(cell_mask, 7)
         
         
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
@@ -116,10 +116,10 @@ def extract_patches(MCIm, masks, centers, size, channels):
         
     return patches
         
-def erode_mask(mask, s=11):
+def dilate_mask(mask, s=11):
     
     k = np.ones((s,s)).astype(np.uint8)
-    ret = cv2.erode(mask.astype(np.uint8), k)
+    ret = cv2.dilate(mask.astype(np.uint8), k)
     return ret.astype(bool)
 
 
