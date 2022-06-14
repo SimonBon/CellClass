@@ -106,12 +106,12 @@ def extract_patches(MCIm, masks, centers, size, channels):
         
         
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
-        #marker_all = np.copy(marker_im)
+        marker_all = np.copy(marker_im)
         marker_im[cell_mask == 0] = 0
         
         if cell_mask.any():
             #patch = Patch(cell_mask, marker_im, marker_all, channels, y, x, n)
-            patch = Patch(cell_mask, marker_im, channels, y, x, n)
+            patch = Patch(cell_mask, marker_all, channels, y, x, n)
             patches.append(patch)
         
     return patches
