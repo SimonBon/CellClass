@@ -1,6 +1,7 @@
 from os import PathLike
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 def uint8_to_float32(img):
     return (img/255).astype("float32")
@@ -18,3 +19,26 @@ def normalize_image(im: np.ndarray):
 
     im = (im-im.min())/(im.max()-im.min())
     return im
+
+def Plot3D(im):
+    
+    fig, ax = plt.subplots(1, 1, figsize=(10,10))
+    X = range(im.shape[0])
+    Y = range(im.shape[1])
+    X, Y = np.meshgrid(X, Y)
+    ax = plt.axes(projection='3d')
+    ax.contour3D(X, Y, im, 50, cmap='binary')
+    plt.show()
+    
+    
+def gridPlot(ims, sz=(10,10)):
+    
+    fig, axs = plt.subplots(sz[0], sz[1], figsize=(3*sz[0], 3*sz[1]))
+    
+    for n, (ax, im) in enumerate(zip(axs.ravel(), ims[:sz[0]*sz[1]])):
+        ax.imshow(im)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(n)
+        
+    plt.show()

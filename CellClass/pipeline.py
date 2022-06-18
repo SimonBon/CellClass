@@ -34,6 +34,8 @@ if __name__=="__main__":
 
     names = find_matching_images(args.in_path, args.sample_name)
 
+    S = Segmentation(args.algorithm)
+
     # for each sample extract the patches
     for n in names:
 
@@ -48,19 +50,23 @@ if __name__=="__main__":
         MCIm = MCImage(img, scheme="BGR")
         MCIm.normalize()
 
-        S = Segmentation(args.algorithm)
+        
         if args.algorithm == "deepcell":
-            _, res, o = S(MCIm.B, return_outline=True, image_mpp=0.4)
+            im, res, o = S(MCIm.B, return_outline=True, image_mpp=0.4)
         else:
-            _, res, o = S(MCIm.B, return_outline=True)
+            im, res, o = S(MCIm.B, return_outline=True)
 
+        cv2.imwrite(os.path.join(args.out_path, f'masks/{sample_name}_masks.tif'), res.astype("uint16"))
+        print("Saved Masks for " + sample_name)
 
         patches = get_cell_patches(MCIm, res, size=128)
 
-        with open(os.path.join(args.out_path, f'{sample_name}.ptch'), 'wb+') as f:
+        with open(os.path.join(args.out_path, f'patches/{sample_name}.ptch'), 'wb+') as f:
             pkl.dump(patches, f)
+        print("Saved Patches for " + sample_name)
+
             
         cv2.imwrite(os.path.join(args.out_path, f'overlays/{sample_name}_o.jpg'), (o.astype("float32")*255).astype("uint8"))
-        print("Saved " + sample_name)
+        print("Saved Overlay for " + sample_name)
 
 

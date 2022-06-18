@@ -1,4 +1,5 @@
 from xmlrpc.client import boolean
+from attr import Attribute
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -102,7 +103,7 @@ def extract_patches(MCIm, masks, centers, size, channels):
         cell_mask = np.copy(tmp_masks[w_y[0]:w_y[1], w_x[0]:w_x[1]])
         cell_mask[cell_mask != n] = 0
         cell_mask = cell_mask.astype(bool)
-        cell_mask = dilate_mask(cell_mask, 7)
+        #cell_mask = dilate_mask(cell_mask, 7)
         
         
         marker_im = np.copy(tmp_im[w_y[0]:w_y[1], w_x[0]:w_x[1], ...])
@@ -156,16 +157,18 @@ class Patch():
         self.y_size ,self.x_size = self.get_size()
         self.area = np.sum(mask)
         
-        props_B = regionprops_table(self.mask.astype("uint8"), self.B, properties=PROPERTIES)
-        props_R = regionprops_table(self.mask.astype("uint8"), self.R, properties=PROPERTIES)
-        props_G = regionprops_table(self.mask.astype("uint8"), self.G, properties=PROPERTIES)
+        self.intensity_features()
         
-        props = defaultdict()
-        for p, c in zip([props_B, props_R, props_G],["B", "R", "G"]):
-            for x in p:
-                props[f"{x}_{c}"] = p[x][0]
+        # props_B = regionprops_table(self.mask.astype("uint8"), self.B, properties=PROPERTIES)
+        # props_R = regionprops_table(self.mask.astype("uint8"), self.R, properties=PROPERTIES)
+        # props_G = regionprops_table(self.mask.astype("uint8"), self.G, properties=PROPERTIES)
+        
+        # props = defaultdict()
+        # for p, c in zip([props_B, props_R, props_G],["B", "R", "G"]):
+        #     for x in p:
+        #         props[f"{x}_{c}"] = p[x][0]
             
-        self.props = props
+        # self.props = props
 
     def get_size(self):
         
@@ -177,3 +180,30 @@ class Patch():
         return y_max-y_min, x_max-x_min
     
     
+    def intensity_features(self):
+        
+        self.Features = Features()
+        for c in ["R", "G", "B"]:
+            tmp = getattr(self, c)[self.mask].ravel()
+            
+            for p in [2, 10, 25, 50, 75, 90, 98]:
+                setattr(self.Features, f"intensity_{c}{p}", np.percentile(tmp, p))
+            
+
+class Features():
+    
+    def __init__(self):
+        pass
+
+    def __iter__(self):
+        self._n = 0
+        self._attrs = [self.__dict__[x] for x in self.__dict__ if not x.startswith("_")]
+        return self
+    
+    def __next__(self):
+        if self._n < len(self._attrs):
+            self._n+=1
+            return self._attrs[self._n-1]
+        else:
+            raise StopIteration
+        
