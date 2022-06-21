@@ -1,10 +1,7 @@
 from xmlrpc.client import boolean
-from attr import Attribute
 import numpy as np
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cv2
-from collections import defaultdict
 from skimage.measure import regionprops_table
 
 from CellClass.MCImage import MCImage

@@ -130,3 +130,6 @@ dmypy.json
 
 #Mac Specific
 .DS_Store
+
+#trained networks
+trained_models/
