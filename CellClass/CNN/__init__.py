@@ -22,14 +22,17 @@ class ConvBlock(nn.Module):
        
        
 class ClassificationCNN(nn.Module):
-    def __init__(self, features=[3, 16, 64, 128, 256], in_shape=[128, 128]):
+    def __init__(self, layers=[3, 16, 64, 128, 256], in_shape=[128, 128]):
         super().__init__()
         
-        self.features = torch.nn.Sequential()
-        for i in range(len(features)-1):
-            self.features.add_module(f"conv{i}", ConvBlock(features[i], features[i+1]))
+        self.layers = layers
+        self.in_shape = in_shape
         
-        self.last_nodes = int(features[-1]*(in_shape[0]/2**(len(features)-1))**2)
+        self.features = torch.nn.Sequential()
+        for i in range(len(layers)-1):
+            self.features.add_module(f"conv{i}", ConvBlock(layers[i], layers[i+1]))
+        
+        self.last_nodes = int(layers[-1]*(in_shape[0]/2**(len(layers)-1))**2)
         
             
         self.fc =  nn.Sequential(
