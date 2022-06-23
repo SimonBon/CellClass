@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import os
 from datetime import datetime
+import sys
      
 
 class TrainingScheduler():
@@ -110,6 +111,7 @@ def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir,
     
     loss_list = []
     for epoch in range(epochs):
+        sys.stdout.flush()
         
         if model_saver.stop_early:
             logger.info(f"Stopping Early! No improvement over {model_saver.patients} epochs!")
@@ -117,7 +119,10 @@ def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir,
         
         running_loss = 0
         n = 0
-        for X, y in train_loader:
+        for sample in train_loader:
+            
+            X = sample["image"]
+            y = sample["true_class"]
             
             n += X.shape[0]
             X = X.to(device)
@@ -160,7 +165,10 @@ def validate(model, val_loader, device, loss_fn):
     with torch.no_grad():
         model.eval()
         
-        for X, y in val_loader:
+        for sample in val_loader:
+            
+            X = sample["image"]
+            y = sample["true_class"]
             
             n += X.shape[0]
             
@@ -198,7 +206,10 @@ def test_model(model, test_loader, loss_fn):
     with torch.no_grad():
         model.eval()
         
-        for X, y in test_loader:
+        for sample in test_loader:
+            
+            X = sample["image"]
+            y = sample["true_class"]
             
             n += X.shape[0]     
             class_target.extend(y.numpy())
@@ -241,8 +252,10 @@ def predict_dilution(model, test_loader, verbose=False):
         model.to(device)
         model.eval()
         
-        for X, y in test_loader:
+        for sample in test_loader:
             
+            X = sample["image"]
+
             n += X.shape[0]        
             images.extend(np.array(X))
             
@@ -253,7 +266,7 @@ def predict_dilution(model, test_loader, verbose=False):
 
 
     images = np.array(images)
-    images = np.transpose(images, [0, 2,3,1])
+    images = np.transpose(images, [0, 2, 3, 1])
     
     class_all = np.array(class_all)
     

@@ -9,16 +9,18 @@ from torch.optim import Adam
 from datetime import datetime
 import matplotlib.pyplot as plt
 from CellClass.CNN import dataset
+from CellClass.CNN import transformations as trans
+from torchvision import transforms
 from CellClass.CNN import training as T
 from torch.utils.data import DataLoader
 
-def save_parameters_to_txt(save_dir, args, train, val, test, model):
+def save_parameters_to_txt(save_dir, args, dataset, model):
 
     with open(os.path.join(save_dir, "training_parameters.txt"), "w+") as fout:
         for arg in vars(args):
             fout.write(f"{arg}: {getattr(args, arg)}\n")
         
-        fout.write(f"Train-Patches: {len(train)}\nValidation_Patches: {len(val)}\nTest_Patches: {len(test)}\n")
+        fout.write(f"Train-Patches: {len(dataset.train_dataset)}\nValidation_Patches: {len(dataset.val_dataset)}\nTest_Patches: {len(dataset.test_dataset)}\n")
         fout.write(f"layers: {model.layers}\n")
         fout.write(f"in_shape: {model.in_shape}\n")
 
@@ -45,7 +47,7 @@ def setup_logger(args, save_dir):
     logger.info(args)
         
 
-def save_training_losses_to_png(save_dir, l):
+def save_training_losses_to_png(save_dir: str, l):
 
     fig, ax = plt.subplots(1, 1, figsize=(10,10))
     ax.plot(range(len(l[:,0])), l[:,0])
@@ -82,26 +84,28 @@ def parse():
     p.add_argument("--negatives", type=str, help="Name of the negative Sample", default="S29")
     p.add_argument('--log', action='store_true')
     p.add_argument('--no-log', dest='log', action='store_false')
+    p.add_argument('--n', action='store_true')
     p.set_defaults(log=True)
-    p.add_argument("-n", type=int, help="number of images", default=100)
     return p.parse_args()
 
 if __name__ == "__main__":
     
     args = parse()
-
+    
     save_dir = create_save_dir(args)
-    print(save_dir)
     setup_logger(args, save_dir)
 
     model = CNN.ClassificationCNN(layers=args.layers)
     loss_fn = nn.CrossEntropyLoss()
     optimizer = Adam(list(model.parameters()), lr=args.learning_rate, weight_decay=0.0001)
     
-    train, val, test = dataset.create_dataset(args.patches_dir, args.negatives, args.positives, n=args.n)
-    train_loader, val_loader, test_loader = DataLoader(train, batch_size=args.batch_size), DataLoader(val, batch_size=args.batch_size), DataLoader(test, batch_size=args.batch_size)
+    transform=transforms.Compose([trans.ToTensor(), trans.RandomAffine(), trans.RandomFlip(),trans.Normalize()])
+    ds = dataset.MYCNTrainingSet(args.patches_dir, neg=args.negatives, pos=args.positives, transform=transform, n=args.n)
+    train_loader = DataLoader(ds.train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(ds.val_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+    test_loader  = DataLoader(ds.test_dataset, batch_size=args.batch_size, shuffle=True, num_workers=2)
     
-    save_parameters_to_txt(save_dir, args, train, val, test, model)
+    save_parameters_to_txt(save_dir, args, ds, model)
 
     l, model = T.train(model, args.epochs, train_loader, val_loader, loss_fn, optimizer, save_dir)
     
