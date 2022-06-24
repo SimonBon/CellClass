@@ -3,6 +3,8 @@ import os
 import numpy as np
 from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+
 
 def _process_illustrator_output(filename, output_dir, image_size=(1496, 2048)):
     
@@ -34,7 +36,7 @@ def random_color(im):
     
 def remove_boarder(mask, border_margin=5):
     
-    for c in range(1, mask.max()):
+    for c in np.unique(mask):
         idx = np.where(mask == c)
         if idx[0].min() < border_margin or idx[1].min() < border_margin:
             mask[mask == c] = 0
@@ -102,11 +104,75 @@ def find_corresponding(target, pred):
         ret = [np.sum(pred == c) for c in cell_idxs]
         return cell_idxs[np.where(ret == max(ret))][0]
     
+def get_false_positives(seg0, seg1):
+
+    FP_counter = 0
+    colors_to_remove = []
+    for c in tqdm(np.unique(seg0)):
+        if c==0:
+            continue
+        
+        true = np.zeros_like(seg0)
+        true[seg0==c]=1
+        sz_true = np.sum(true)
+        
+        tmp1 = np.copy(seg1)
+        tmp1[true==0] = 0
+        tmp1[tmp1 != 0] = 1
+        sz_pred = np.sum(tmp1)
+        
+        if (sz_pred/sz_true) < 0.2:  
+            FP_counter += 1
+            colors_to_remove.append(c)
+
+    return FP_counter, colors_to_remove
+
+def get_false_negatives(seg0, seg1):
+    
+    FN_counter = 0
+    colors_to_remove = []
+    for c in tqdm(np.unique(seg1)):
+        if c==0:
+            continue
+        
+        true = np.zeros_like(seg1)
+        true[seg1==c]=1
+        sz_true = np.sum(true)
+        
+        tmp0 = np.copy(seg0)
+        tmp0[true==0] = 0
+        tmp0[tmp0 != 0] = 1
+        sz_pred = np.sum(tmp0)
+        
+        if (sz_pred/sz_true) < 0.2:  
+            FN_counter += 1
+            colors_to_remove.append(c)
+
+    return FN_counter, colors_to_remove
+
+
+def remove_colors(seg, colors):
+    
+    seg = np.copy(seg)
+    for c in colors:
+        seg[seg==c] = 0
+    return seg
+    
 
 def compare_segmentations(seg0, seg1):
 
+    fn_counter, seg1_colors_to_remove = get_false_negatives(seg0, seg1)
+    fp_counter, seg0_colors_to_remove = get_false_positives(seg0, seg1)
+
+    print(f"False Positives: {fp_counter}\nFalse Negatives: {fn_counter}")
+    seg0 = remove_colors(seg0, seg0_colors_to_remove)
+    seg1 = remove_colors(seg1, seg1_colors_to_remove)
+
     ret = []
-    for c in tqdm(range(1, seg0.max()+1)):
+    for c in tqdm(np.unique(seg0)):
+        
+        if c == 0:
+            continue
         
         tmp_seg0 = np.copy(seg0)
         tmp_seg0[tmp_seg0 != c] = 0
@@ -118,21 +184,12 @@ def compare_segmentations(seg0, seg1):
         tmp_seg1[tmp_seg0 == 0] = 0
         
         cell_idx = find_corresponding(tmp_seg0, tmp_seg1)
-        
-        if cell_idx != 0:
-            
-            tmp_seg1 = np.copy(seg1)
-            tmp_seg1[tmp_seg1 != cell_idx] = 0
+        tmp_seg1 = np.copy(seg1)
+        tmp_seg1[tmp_seg1 != cell_idx] = 0
 
-            vprecision, vrecall = precision_recall(tmp_seg0, tmp_seg1)
-            vdice = dice(tmp_seg0, tmp_seg1)
-            vjaccard = jaccard(tmp_seg0, tmp_seg1)
-            
-        else:
-            
-            vprecision, vrecall = 0, 0
-            vdice = 0
-            vjaccard = 0
+        vprecision, vrecall = precision_recall(tmp_seg0, tmp_seg1)
+        vdice = dice(tmp_seg0, tmp_seg1)
+        vjaccard = jaccard(tmp_seg0, tmp_seg1)
                 
         for val, modularity in zip([vdice, vjaccard, vprecision, vrecall], ["dice", "jaccard", "precision", "recall"]): 
             ret.append({
@@ -140,4 +197,4 @@ def compare_segmentations(seg0, seg1):
                     "mod":  modularity,
                 })
             
-    return ret
+    return ret, fp_counter, fn_counter

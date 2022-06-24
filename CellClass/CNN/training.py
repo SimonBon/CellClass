@@ -244,6 +244,7 @@ def test_model(model, test_loader, loss_fn):
 def predict_dilution(model, test_loader, verbose=False):
     
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print(f"Using {device} for calculations!")
 
     n = 0
     images = []
