@@ -133,3 +133,6 @@ dmypy.json
 
 #trained networks
 trained_models/
+
+#images
+*.png
