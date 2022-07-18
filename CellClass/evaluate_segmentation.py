@@ -104,7 +104,7 @@ def find_corresponding(target, pred):
         ret = [np.sum(pred == c) for c in cell_idxs]
         return cell_idxs[np.where(ret == max(ret))][0]
     
-def get_false_positives(seg0, seg1):
+def get_false_negatives(seg0, seg1):
 
     FP_counter = 0
     colors_to_remove = []
@@ -121,13 +121,14 @@ def get_false_positives(seg0, seg1):
         tmp1[tmp1 != 0] = 1
         sz_pred = np.sum(tmp1)
         
-        if (sz_pred/sz_true) < 0.2:  
-            FP_counter += 1
+        if (sz_pred/sz_true) < 0.2 or sz_true < 25:
+            if sz_true > 25:
+                FP_counter += 1
             colors_to_remove.append(c)
 
     return FP_counter, colors_to_remove
 
-def get_false_negatives(seg0, seg1):
+def get_false_positives(seg0, seg1):
     
     FN_counter = 0
     colors_to_remove = []
@@ -144,8 +145,9 @@ def get_false_negatives(seg0, seg1):
         tmp0[tmp0 != 0] = 1
         sz_pred = np.sum(tmp0)
         
-        if (sz_pred/sz_true) < 0.2:  
-            FN_counter += 1
+        if (sz_pred/sz_true) < 0.2 or sz_true < 25:
+            if sz_true > 25:
+                FN_counter += 1
             colors_to_remove.append(c)
 
     return FN_counter, colors_to_remove
@@ -161,8 +163,8 @@ def remove_colors(seg, colors):
 
 def compare_segmentations(seg0, seg1):
 
-    fn_counter, seg1_colors_to_remove = get_false_negatives(seg0, seg1)
-    fp_counter, seg0_colors_to_remove = get_false_positives(seg0, seg1)
+    fp_counter, seg1_colors_to_remove = get_false_positives(seg0, seg1)
+    fn_counter, seg0_colors_to_remove = get_false_negatives(seg0, seg1)
 
     print(f"False Positives: {fp_counter}\nFalse Negatives: {fn_counter}")
     seg0 = remove_colors(seg0, seg0_colors_to_remove)

@@ -7,6 +7,7 @@ import numpy as np
 import os
 from datetime import datetime
 import sys
+from CellClass.CNN.utils import log
      
 
 class TrainingScheduler():
@@ -18,6 +19,8 @@ class TrainingScheduler():
         self.min_learning_rate = min_learning_rate
         self.save_dir = save_dir
         self.val_losses = np.array([])
+        self.train_losses = np.array([])
+        self.accuracies = np.array([])
         self.patients = patients
         self.stop_early = False
         self._saved_dict = {"models": [], "losses": []}
@@ -51,7 +54,9 @@ class TrainingScheduler():
                 self.stop_early = True
                 self.logger.info("Early Stopping")
                 
-        self.val_losses = np.append(self.val_losses, self.val_loss) 
+        self.val_losses = np.append(self.val_losses, val_loss) 
+        self.train_losses = np.append(self.train_losses, train_loss) 
+        self.accuracies = np.append(self.train_losses, accuracy) 
         self._patients_counter += 1
         
     def save_model(self, epoch, train_loss, accuracy): 
@@ -67,6 +72,10 @@ class TrainingScheduler():
                 "train_loss": train_loss,
                 "validation_loss": self.val_loss,
                 "epoch": epoch,
+                "val_losses": self.val_losses,
+                "train_losses": self.train_losses,
+                "accuracies": self.accuracies
+                
             },
             os.path.join(self.save_dir, f"CNN_Model_{time}.pt")
         )
@@ -97,7 +106,8 @@ def get_device():
     
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     logger = logging.getLogger("training")
-    logger.info("Using CUDA as Training Device")
+    logger.info(f"Using {device} as Training Device")
+    log("debugger", f"Device: {device}")
     return device
 
 def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir, patients=10):
@@ -123,10 +133,10 @@ def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir,
             
             X = sample["image"]
             y = sample["true_class"]
-            
+            y = y.unsqueeze(-1).float()
+
             n += X.shape[0]
             X = X.to(device)
-            y = y.type(torch.LongTensor)  
             y = y.to(device)
             
             pred = model(X)
@@ -138,18 +148,18 @@ def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir,
             loss.backward()
             optimizer.step()
             
-        
         running_loss /= n
         val_loss, accuracy = validate(model, val_loader, device, loss_fn)
+        log("debugger", f"Accuracy: {accuracy.item()}")
         
         model_saver.add_loss(epoch, running_loss, val_loss, accuracy)
         
         loss_list.append([running_loss, accuracy, val_loss])
         
         if model_saver.saved:
-            logger.info(f"[{epoch}/{epochs}] Train Loss: {running_loss:.2e} // Validation Loss: {val_loss:.5e} // Accuracy: {round(accuracy*100,2)}% || SAVED")
+            logger.info(f"[{epoch}/{epochs}] Train Loss: {running_loss:.2e} // Validation Loss: {val_loss:.5e} // Accuracy: {np.round(accuracy*100,2)}% || SAVED")
         else:
-            logger.info(f"[{epoch}/{epochs}] Train Loss: {running_loss:.2e} // Validation Loss: {val_loss:.5e} // Accuracy: {round(accuracy*100,2)}% || NOT SAVED PATIENTS[{model_saver._patients_counter}/{model_saver.patients}]")
+            logger.info(f"[{epoch}/{epochs}] Train Loss: {running_loss:.2e} // Validation Loss: {val_loss:.5e} // Accuracy: {np.round(accuracy*100,2)}% || NOT SAVED PATIENTS[{model_saver._patients_counter}/{model_saver.patients}]")
 
         
     loss_list = np.array(loss_list)
@@ -159,8 +169,8 @@ def train(model, epochs, train_loader, val_loader, loss_fn, optimizer, save_dir,
         
 def validate(model, val_loader, device, loss_fn):
     
-    running_loss = 0
-    running_accuracy = 0
+    running_loss = float(0)
+    running_accuracy = float(0)
     n = 0
     with torch.no_grad():
         model.eval()
@@ -169,11 +179,11 @@ def validate(model, val_loader, device, loss_fn):
             
             X = sample["image"]
             y = sample["true_class"]
-            
+            y = y.unsqueeze(-1).float()
+
             n += X.shape[0]
             
             X = X.to(device)
-            y = y.type(torch.LongTensor)  
             y = y.to(device)
             
             pred = model(X)
@@ -182,13 +192,14 @@ def validate(model, val_loader, device, loss_fn):
 
             running_loss += loss.item()
             
-            classes = torch.argmax(pred, dim=1)
+            classes = pred.detach()
+            classes[pred > 0] = 1
+            classes[pred <= 0] = 0
             running_accuracy += sum(classes == y).cpu().detach().numpy()
             
     running_loss /= n
     running_accuracy /= n
-
-    
+        
     return running_loss, running_accuracy
     
 
@@ -197,8 +208,8 @@ def test_model(model, test_loader, loss_fn):
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model.to(device)
 
-    running_loss = 0
-    running_accuracy = 0
+    running_loss = float(0)
+    running_accuracy = float(0)
     n = 0
     images = []
     class_all = []
@@ -210,45 +221,49 @@ def test_model(model, test_loader, loss_fn):
             
             X = sample["image"]
             y = sample["true_class"]
+            y = y.unsqueeze(-1).float()
             
             n += X.shape[0]     
             class_target.extend(y.numpy())
             images.extend(np.array(X))
             
             X = X.to(device)
-            y = y.type(torch.LongTensor)  
             y = y.to(device)
             
             pred = model(X)
-            
+
             loss = loss_fn(pred, y)
+
 
             running_loss += loss.item()
             
-            classes = torch.argmax(pred, dim=1)
+            classes = pred.detach()
+            classes[pred > 0] = 1
+            classes[pred <= 0] = 0
             class_all.extend(np.array(classes.cpu().detach().numpy()))
             running_accuracy += sum(classes == y).cpu().detach().numpy()
             
     running_loss /= n
     running_accuracy /= n
 
+
     images = np.array(images)
     images = np.transpose(images, [0, 2,3,1])
     
     logger = logging.getLogger("training")
-    logger.info(f"Test Accuracy is {round(running_accuracy*100,2)}%")   
+    logger.info(f"Test Accuracy is {np.round(running_accuracy*100,2)}%")   
     
-    return images, class_all, class_target, round(running_accuracy*100,2)
+    return images, class_all, class_target, np.round(running_accuracy*100,2)
 
 
-def predict_dilution(model, test_loader, verbose=False):
+def predict_dilution(model, test_loader, verbose=False, return_output=False, with_uncertainty=False):
     
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    print(f"Using {device} for calculations!")
 
     n = 0
     images = []
     class_all = []
+    all_preds = []
     with torch.no_grad():
         model.to(device)
         model.eval()
@@ -262,18 +277,48 @@ def predict_dilution(model, test_loader, verbose=False):
             
             X = X.to(device)
             pred = model(X)
-            classes = torch.argmax(pred, dim=1)
+            all_preds.extend(pred.detach().clone())
+            classes = pred.detach()
+            classes[pred > 0] = 1
+            classes[pred <= 0] = 0
             class_all.extend(np.array(classes.cpu().detach().numpy()))
-
 
     images = np.array(images)
     images = np.transpose(images, [0, 2, 3, 1])
     
     class_all = np.array(class_all)
     
-    if verbose:
-        print(f"Dilation Prediction is {round(sum((class_all == 1))/len(class_all)*100,2)}")   
+    if with_uncertainty:
+        
+        pos = 0
+        neg = 0
+        unc = 0
+        probability = torch.sigmoid(torch.tensor(all_preds))
+        for prob in probability:
+            if prob > 0.9:
+                pos+=1
+            elif prob < 0.1:
+                neg+=1
+            else:
+                unc+=1
     
-    return images, list(class_all), round(sum((class_all == 1))/len(class_all)*100,2)
+        if verbose:
+            print(f"Dilation Prediction is {np.round((pos/(pos+neg))*100,2)}")   
+            
+        if return_output:
+            return images, [pos, neg, unc], np.round((pos/(pos+neg))*100,2), all_preds
+        
+        else:
+            return images, [pos, neg, unc], np.round((pos/(pos+neg))*100,2)
     
+    else:
+        
+        if verbose:
+            print(f"Dilation Prediction is {np.round(sum((class_all == 1))/len(class_all)*100,2)}")   
+        
+        if return_output:
+            return images, list(class_all), np.round(sum((class_all == 1))/len(class_all)*100,2)[0], all_preds
+        
+        else:
+            return images, list(class_all), np.round(sum((class_all == 1))/len(class_all)*100,2)[0]
     

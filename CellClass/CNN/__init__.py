@@ -1,4 +1,3 @@
-from inspect import getargvalues
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -37,16 +36,17 @@ class ClassificationCNN(nn.Module):
             
         self.fc =  nn.Sequential(
             nn.Linear(self.last_nodes, 100),
-            nn.Linear(100, 2)
+            nn.ReLU(),
+            nn.Linear(100, 1)
         )
         
-        
+
     def forward(self, X):
         
         for mod in self.features:
             X = mod(X)
             
-        X = X.view(-1, self.last_nodes)
+        X = X.reshape(-1, self.last_nodes)
         return self.fc(X)
 
 

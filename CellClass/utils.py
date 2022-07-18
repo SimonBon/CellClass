@@ -31,7 +31,7 @@ def Plot3D(im):
     plt.show()
     
     
-def gridPlot(ims, labels=None, target=None, sz=(10,10), vmin=0, vmax=1):
+def gridPlot(ims, labels=None, target=None, sz=(10,10), vmin=0, vmax=1, save=None, plot=True):
     
     fig, axs = plt.subplots(sz[0], sz[1], figsize=(3*sz[0], 3*sz[1]))
     
@@ -39,11 +39,15 @@ def gridPlot(ims, labels=None, target=None, sz=(10,10), vmin=0, vmax=1):
         ax.imshow(im, vmin=vmin, vmax=vmax)
         ax.set_xticks([])
         ax.set_yticks([])
-        if isinstance(labels, list) and isinstance(target, list):
-            ax.set_title([int(labels[n]), int(target[n])], color="white")
-        elif isinstance(labels, list):
-            ax.set_title(int(labels[n]), color="white")
+        if isinstance(labels, (list, np.ndarray)) and isinstance(target, (list, np.ndarray)):
+            ax.set_title([labels[n], target[n]], color="white")
+        elif isinstance(labels, (list, np.ndarray)):
+            ax.set_title(labels[n], color="white")
         else:
             ax.set_title(n)
         
-    plt.show()
+    if isinstance(save, str):
+        plt.savefig(save)
+        plt.close(fig)
+    if plot: 
+        plt.show()
